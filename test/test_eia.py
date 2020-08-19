@@ -1,5 +1,6 @@
 import unittest
 import eia
+import symbols
 
 
 class TestEIA(unittest.TestCase):
@@ -11,10 +12,13 @@ class TestEIA(unittest.TestCase):
             'PET.WCSSTUS1.W',
             'PET.WGTSTUS1.W',
         ]
-        res = eia.symbols(tuple(eia_symbols))
+        res = eia.get_symbols(tuple(eia_symbols))
         self.assertEqual(res.loc['2020-01-03']['PET.WCRSTUS1.W'], 1066027.0)
 
-
+    def test_all_defined_symbols_valid(self):
+        res = eia.get_symbols(tuple(symbols.basic.values()))
+        for s in symbols.basic.values():
+            self.assertIn(s, res.columns)
 
 
 if __name__ == '__main__':
