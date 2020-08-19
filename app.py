@@ -6,6 +6,7 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Output, Input
 from commodplot import commodplot as cpl
 import eia
+import symbols
 
 
 external_stylesheets = [dbc.themes.BOOTSTRAP]
@@ -17,20 +18,26 @@ server = app.server
 app.layout = dbc.Container(
     [
         dcc.Store(id="store"),
-        html.H1("EIA: Weekly Petroleum Status Report"),
+        dbc.Row(
+            [html.H1("EIA: Weekly Petroleum Status Report"),
+             html.Plaintext("            Last Update: "),
+             dbc.Badge(id='last_update_tag', color="primary", className="ml-1")]),
+
         html.Hr(),
         html.Div(id='none',children=[],style={'display': 'none'}),
         dbc.Tabs(
             [
                 dbc.Tab(label="Overview", tab_id="Overview"),
-                dbc.Tab(label="Crude", tab_id="Crude"),
-                dbc.Tab(label="Gasoline", tab_id="Gasoline"),
+                # dbc.Tab(label="Crude", tab_id="Crude"),
+                # dbc.Tab(label="Gasoline", tab_id="Gasoline"),
+                dbc.Tab(label="Config", tab_id="Config"),
             ],
             id="tabs",
             active_tab="Overview",
         ),
         html.Div(id="tab-content", className="p-4"),
-    ]
+    ],
+    fluid=True,
 )
 
 
@@ -46,18 +53,39 @@ def render_tab_content(active_tab, data):
     """
     if active_tab:
         if active_tab == "Overview":
+            if data is None:
+                return dcc.Graph()
+
+            return html.Div([
+                dbc.Row(
+                [
+                    dbc.Col(dcc.Graph(figure=data["Crude Stocks"]), width=4),
+                    dbc.Col(dcc.Graph(figure=data["Gasoline Stocks"]), width=4),
+                    dbc.Col(dcc.Graph(figure=data["Dist Stocks"]), width=4),
+                ]),
+                dbc.Row(
+                [
+                    dbc.Col(dcc.Graph(figure=data["Cushing Crude Stocks"]), width=4),
+                    dbc.Col(dcc.Graph(figure=data["Gasoline Supplied"]), width=4),
+                    dbc.Col(dcc.Graph(figure=data["Dist Fuel Supplied"]), width=4),
+                ]),
+                dbc.Row(
+                [
+                    dbc.Col(dcc.Graph(figure=data["Crude Production"]), width=4),
+                    dbc.Col(dcc.Graph(figure=data["Refinery Demand"]), width=4),
+                    dbc.Col(dcc.Graph(), width=4),
+                ]),
+            ])
+        elif active_tab == "Config":
             return dbc.Row(
                 [
-                    dbc.Col(dcc.Graph(figure=data["crude_stocks"]), width=4),
-                    dbc.Col(dcc.Graph(figure=data["gasoline_stocks"]), width=4),
-                    dbc.Col(dcc.Graph(figure=data["dist_stocks"]), width=4),
-                ]
-            )
-        elif active_tab == "Crude":
-            return dbc.Row(
-                [
-                    dbc.Col(dcc.Graph(), width=6),
-                    dbc.Col(dcc.Graph(), width=6),
+                    dbc.Button(
+                        "Reset cache",
+                        color="primary",
+                        block=True,
+                        id="reset_cache_button",
+                        className="mb-3",
+                    ),
                 ]
             )
     return "No tab selected"
@@ -66,15 +94,26 @@ def render_tab_content(active_tab, data):
 @app.callback(Output("store", "data"),  [Input('none', 'children')])
 def generate_graphs(none):
 
-    df = eia.overview()
+    df = eia.get_symbols(tuple(symbols.basic.values()))
     df = df.tail(12*52)
     res = {}
-    res['crude_stocks'] = cpl.seas_line_plot(df['PET.WCESTUS1.W']/100, title='Crude Stocks', histfreq='W', shaded_range=5)
-    res['gasoline_stocks'] = cpl.seas_line_plot(df['PET.WGTSTUS1.W']/100, title='Gasoline Stocks', histfreq='W', shaded_range=5)
-    res['dist_stocks'] = cpl.seas_line_plot(df['PET.WDISTUS1.W']/100, title='Dist Stocks', histfreq='W', shaded_range=5)
+    yaxt = 'mb'
+
+    for item, symbol in symbols.basic.items():
+        res[item] = cpl.seas_line_plot(df[symbol]/1000, title=item, histfreq='W', shaded_range=5, yaxis_title=yaxt)
 
     # save figures in a dictionary for sending to the dcc.Store
     return res
+
+
+@app.callback(Output("none", "children"), [Input("reset_cache_button", "n_clicks")])
+def reset_cache_button(n):
+    eia.clear_cache()
+
+
+@app.callback(Output("last_update_tag", "children"), [Input("none", "n_clicks")])
+def last_update_tag(n_clicks):
+    return eia.last_update_tag()
 
 
 if __name__ == '__main__':
