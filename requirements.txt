@@ -1,7 +1,6 @@
-dash
 plotly
-dash-bootstrap-components
 pandas
 commodplot
 commodutil
-gunicorn
+oilanalytics
+excel-scraper
