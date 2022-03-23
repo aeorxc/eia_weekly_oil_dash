@@ -1,6 +1,0 @@
-plotly
-pandas
-commodplot
-commodutil
-oilanalytics
-excel-scraper
