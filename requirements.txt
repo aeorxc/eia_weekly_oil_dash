@@ -4,3 +4,4 @@ commodplot
 commodutil
 oilanalytics
 excel-scraper
+xlrd
